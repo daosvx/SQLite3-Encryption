@@ -57,7 +57,7 @@ typedef sqlite3_uint64 uint64;
   #define li_64(h) 0x##h##ull
 #endif 
 
-#if 0  // Start of original int64 defines
+#if 0  /* Start of original int64 defines */
 
 #if defined(_MSC_VER)
   #if _MSC_VER >= 1310
@@ -104,8 +104,7 @@ typedef sqlite3_uint64 uint64;
 #endif
 #endif
 
-#endif // End of original int64 defines
-//
+#endif /* End of original int64 defines */
 
 #ifdef __cplusplus
 extern "C" {
@@ -139,6 +138,7 @@ void sha256_init(sha256_ctx * ctx);
 void sha256_update(sha256_ctx *ctx, const unsigned char *message,
                    unsigned int len);
 void sha256_final(sha256_ctx *ctx, unsigned char *digest);
+void sha256_transform(sha256_ctx *ctx, const unsigned char *message);
 void sha256(const unsigned char *message, unsigned int len,
             unsigned char *digest);
 
@@ -153,6 +153,7 @@ void sha512_init(sha512_ctx *ctx);
 void sha512_update(sha512_ctx *ctx, const unsigned char *message,
                    unsigned int len);
 void sha512_final(sha512_ctx *ctx, unsigned char *digest);
+void sha512_transform(sha512_ctx *ctx, const unsigned char *message);
 void sha512(const unsigned char *message, unsigned int len,
             unsigned char *digest);
 
