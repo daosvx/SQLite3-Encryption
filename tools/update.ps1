@@ -16,8 +16,9 @@ $PROJECT_ROOT_DIR = $(Resolve-Path "$PSScriptRoot\..")
 $OUTPUT_DIR       = "$PROJECT_ROOT_DIR\src"
 $TMP_FILE         = "$env:TMP\wxsqlite3.zip"
 
-$WXSQLITE_SF_API_URL = "http://sourceforge.net/projects/wxcode/rss?path=/Components/wxSQLite3&limit=3"
-$WXSQLITE_SF_API_SRC = $WebClient.DownloadString($WXSQLITE_SF_API_URL)
+$WXSQLITE_GH_API_URL = "https://api.github.com/repos/utelle/wxsqlite3/releases/latest"
+$WXSQLITE_OBJ = Invoke-WebRequest $WXSQLITE_GH_API_URL | ConvertFrom-Json
+$WXSQLITE_SF_API_SRC = $WXSQLITE_OBJ.assets.browser_download_url
 $WXSQLITE_URL        = $WXSQLITE_SF_API_SRC -replace "`n|`r" -replace '.*<link>([^<]*\.zip\/download).*','$1'
 $WXSQLITE_URL
 
@@ -26,7 +27,7 @@ function compareVersions ($a, $b){
 }
 
 function getRemoteWxSqliteVersion(){
-    $WXSQLITE_URL | %{$_ -replace '.*wxsqlite3-([0-9.]+)\..*', '$1'}
+    $WXSQLITE_OBJ.tag_name  -replace 'v', ''
 }
 
 function getLocalVersion($type){
