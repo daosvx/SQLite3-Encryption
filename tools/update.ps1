@@ -18,9 +18,6 @@ $TMP_FILE         = "$env:TMP\wxsqlite3.zip"
 
 $WXSQLITE_GH_API_URL = "https://api.github.com/repos/utelle/wxsqlite3/releases/latest"
 $WXSQLITE_OBJ = Invoke-WebRequest $WXSQLITE_GH_API_URL | ConvertFrom-Json
-$WXSQLITE_SF_API_SRC = $WXSQLITE_OBJ.assets.browser_download_url
-$WXSQLITE_URL        = $WXSQLITE_SF_API_SRC -replace "`n|`r" -replace '.*<link>([^<]*\.zip\/download).*','$1'
-$WXSQLITE_URL
 
 function compareVersions ($a, $b){
     (New-Object System.Version($a)).CompareTo((New-Object System.Version($b)))
@@ -44,7 +41,23 @@ function setLocalVersion($type, $value){
 function getSqliteVersion(){
     Get-Content "$OUTPUT_DIR\sqlite3.h" | where { $_ -match "#define SQLITE_VERSION " } | %{$_ -replace '.*"([\d.]{5,})".*', '$1'}
 }
+# from https://social.msdn.microsoft.com/Forums/vstudio/en-US/de846ebb-c225-44a4-b443-e64760486e70/how-to-post-data-to-the-restful-webservice-from-cnet?forum=csharpgeneral
 
+Function Get-RedirectedUrl() {
+      Param (
+	         [Parameter(Mandatory=$true)]
+	         [String]$URL     )
+	Write-Host "Getting $url"
+      $request = [System.Net.WebRequest]::Create($url)
+     $request.AllowAutoRedirect=$false
+     $response=$request.GetResponse()
+     If ($response.StatusCode -eq "Found") {
+         $response.GetResponseHeader("Location")
+     }
+}
+# link in json is to api.*, which doesn't actually serve zip, it redirects.
+#$WXSQLITE_URL = Get-RedirectedUrl $WXSQLITE_OBJ.zipball_url.toString() 
+#Write-Host "Link was " + $WXSQLITE_OBJ.zipball_url + " Now is $WXSQLITE_URL"
 
 $OLD_WXSQLITE_VERSION = getLocalVersion "wxsqlite"
 $REMOTE_WXSQLITE_VERSION = getRemoteWxSqliteVersion
@@ -56,20 +69,48 @@ if ($(compareVersions $OLD_WXSQLITE_VERSION $REMOTE_WXSQLITE_VERSION) -ne -1){
 
 $OLD_SQLITE_VERSION = getSqliteVersion
 
-
-$WebClient.DownloadFile($WXSQLITE_URL, $TMP_FILE)
-
+try
+{
+Write-Host "Downloading $WXSQLITE_URL to $TMP_FILE"
+$request = [System.Net.WebRequest]::Create($WXSQLITE_OBJ.zipball_url.toString())
+$request.Accept = "*/*";
+$request.UserAgent = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0 .NET4.0C;)"
+$resp = $request.GetResponse()
+if( $resp.GetType().Name -eq "HttpWebResponse" -and $resp.StatusCode -eq [System.Net.HttpStatusCode]::OK )
+{
+	$writer = new-object System.IO.StreamReader $resp.GetResponseStream()
+	$writer.ReadToEnd() | Out-File $TMP_FILE
+ Write-Host "Yay" 
+}
+else
+{
+	Write-Host "Unable to Download"
+	exit
+}
+$found = $False
 $zip = $Shell.Namespace($TMP_FILE)
 foreach($item in $zip.items())
 {
-    if ( $item.Name -like "wxsqlite3-*" ){
+	Write-Host "- " $item.Name
+    if ( $item.Name -like "*-wxsqlite3-*" ){
         $items = $Shell.NameSpace("$TMP_FILE\"+$item.Name+"\sqlite3\secure\src").Items()
         $Shell.Namespace($OUTPUT_DIR).Copyhere($items, $CP_HERE_YES_TO_ALL)
+		$found = $True
     }
 }
 
-Remove-Item $TMP_FILE
+#Remove-Item $TMP_FILE
+} catch 
+{
+	Write-Host "Error Downloading"
+	exit
+}
 
+
+if( ! $found ) {
+	Write-Host "Failed to copy items"
+	exit
+}
 
 $NEW_SQLITE_VERSION = getSqliteVersion
 
